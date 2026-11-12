@@ -6,9 +6,8 @@ on:
   schedule:
     - cron: '20 10 * 9-12 3'
 permissions:
-  contents: read
+  contents: write
   pages: write
-  id-token: write
 concurrency:
   group: vegas-sor-pages
   cancel-in-progress: false
@@ -24,15 +23,16 @@ jobs:
       - if: github.event_name != 'push'
         run: python scripts/collect.py
       - run: python scripts/build.py
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - id: deploy
-        uses: actions/deploy-pages@v4
+      - name: Update publishing branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin gh-pages
+          git worktree add -B gh-pages ../publish origin/gh-pages
+          rsync -a --delete --exclude='.git' docs/ ../publish/
+          git -C ../publish add -A
+          if ! git -C ../publish diff --cached --quiet; then
+            git -C ../publish -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -m "Update weekly market rankings"
+            git -C ../publish push origin HEAD:gh-pages
+          fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
