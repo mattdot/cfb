@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Conference strength · Vegas SOR</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="conferences.css"></head>
+<body><header><nav><strong>Vegas SOR</strong><a href="./" id="rankings">Rankings</a><a href="conferences.html" aria-current="page">Conferences</a><a href="methodology.html">Methodology</a></nav></header>
+<main><h1>Conference strength</h1><p class="lead">Compare the strength of a league’s middle team, its contenders, and its results outside the conference.</p>
+<div class="controls"><label>2026 season<select id="week"></select></label><label>Conference<select id="league"></select></label><span id="cutoff"></span></div>
+<h2>League comparison</h2><p>Point ratings measure the neutral-field advantage over an average FBS team. Select a column to sort.</p>
+<div class="scroll"><table id="comparison"><thead></thead><tbody></tbody></table></div>
+<h2>Team strength by conference</h2><p>Each dot is a team. The vertical tick marks its conference median. Select a dot to find the team below.</p>
+<div id="chart"></div>
+<section id="detail"><h2 id="leagueTitle"></h2><p id="teamSummary"></p>
+<div class="scroll"><table id="members"><thead></thead><tbody></tbody></table></div>
+<h2>Against other conferences</h2><p>Expected wins sum each team’s win probabilities from its actual closing spreads. The difference shows wins above or below market expectation.</p>
+<div class="scroll"><table id="opponents"><thead><tr><th>Opponent group</th><th>Games</th><th>W–L</th><th>With line</th><th>Expected wins</th><th>Difference</th></tr></thead><tbody></tbody></table></div>
+<p id="note"></p></section>
+<p class="fine">Top-three strength averages the available members for groups smaller than three. Conference records use league-designated games. Performance outside the conference counts each member’s games against other leagues, with FCS separate. Independent teams are grouped for comparison; a meeting between two independents contributes both perspectives. Differences use only games with a closing spread.</p>
+</main><script src="season.js"></script><script src="conference-data.js"></script><script src="conferences.js"></script></body></html>

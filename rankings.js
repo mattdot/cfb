@@ -30,3 +30,8 @@ weeks.onchange = () => {
 };
 search.oninput = render;
 render();
+function linkConferenceWeek() {
+  document.querySelector('a[href^="conferences.html"]').href = 'conferences.html?week=' + weeks.value;
+}
+weeks.addEventListener('change', linkConferenceWeek);
+linkConferenceWeek();
