@@ -67,6 +67,7 @@ def collect(cache):
             return dict(id=key, week=event['week']['number'], date=stamp.date().isoformat(),
                         localDate=stamp.astimezone(EAST).date().isoformat(), home=home['id'], away=away['id'],
                         neutral=event['competitions'][0]['neutralSite'], homeScore=int(home['score']),
+                        leagueGame=event['competitions'][0]['conferenceCompetition'],
                         awayScore=int(away['score']), margin=margin, provider=provider)
 
         games = sorted(pool.map(game, events.items()), key=lambda g: (g['date'],g['id']))

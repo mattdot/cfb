@@ -56,16 +56,20 @@ def rank(games, teams):
     result.sort(key=lambda r: (round(r['p'],14), r['name']))
     for i,row in enumerate(result):
         row['rank'] = result[i-1]['rank'] if i and round(row['p'],14)==round(result[i-1]['p'],14) else i+1
-    return result, len(lined)
+    return result, len(lined), {t: rating[t] for t in fbs}
 
 
 def build():
     season = json.loads((ROOT/'data/season.json').read_text())
+    from conferences import summarize
+    membership = json.loads((ROOT/'data/conferences-2026.json').read_text())
     output = []
+    conference_weeks = {}
     through = max(g['localDate'] for g in season['games'])
     for week in sorted({g['week'] for g in season['games']}):
         games = [g for g in season['games'] if g['week']<=week]
-        rows, covered = rank(games, season['teams'])
+        rows, covered, power = rank(games, season['teams'])
+        conference_weeks[week] = summarize(games, rows, power, membership, BETA)
         end = max(g['localDate'] for g in games)
         day = date.fromisoformat(end)
         # Pair a result week with the post-week polls through the next Tuesday.
@@ -79,6 +83,7 @@ def build():
                 for row in rows:
                     row[kind] = poll['ranks'].get(row['id'])
         output.append(dict(week=week, through=end, games=len(games), lined=covered, polls=releases, rows=rows))
+    (ROOT/'docs/conference-data.js').write_text('const conferenceWeeks = '+json.dumps(conference_weeks,separators=(',',':'))+';\n')
     (ROOT/'docs/season.js').write_text('const season = '+json.dumps(output,ensure_ascii=False,separators=(',',':'))+';\n')
 
 
