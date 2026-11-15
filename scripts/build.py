@@ -61,8 +61,11 @@ def rank(games, teams, market=None):
     return result, covered, {t: rating[t] for t in sorted(fbs)}
 
 
-def team_pages(games, teams, market, rows, power, membership):
-    """Each FBS team's schedule with closing lines beside hindsight lines, for team.html."""
+def team_pages(games, teams, market, rows, power, membership, weekly=()):
+    """Each FBS team's schedule with closing lines beside hindsight lines, for team.html.
+
+    weekly: (week, {team: SOR rank}, {team: VPI rank}) per published week, for the rank chart.
+    """
     (current, home_field_now), hindsight, _ = views(games, teams, market)
     sor = {row['id']: row for row in rows}
     order = sorted(power, key=power.get, reverse=True)
@@ -91,9 +94,11 @@ def team_pages(games, teams, market, rows, power, membership):
             schedule.append(game)
         schedule.sort(key=lambda x: (x['date'], x['week']))
         row = sor[team]
+        history = [dict(week=week, sor=sor_ranks.get(team), vpi=vpi_ranks.get(team))
+                   for week, sor_ranks, vpi_ranks in weekly]
         pages[team] = dict(name=teams[team]['name'], conference=membership.get(team, ''), wins=row['wins'],
                            losses=row['losses'], sorRank=row['rank'], p=row['p'], vpiRank=order.index(team) + 1,
-                           points=round(power[team] - average, 1), games=schedule)
+                           points=round(power[team] - average, 1), games=schedule, history=history)
     return pages
 
 
@@ -149,7 +154,9 @@ def build():
             manifest.write_text(json.dumps(history,separators=(',',':')))
     final_games = [g for g in season['games'] if g['week'] <= last_week]
     final_rows, _, final_power = rank(final_games, season['teams'], market)
-    pages = team_pages(final_games, season['teams'], market, final_rows, final_power, membership)
+    weekly = [(snap['week'], {r['id']: r['rank'] for r in snap['rows']},
+               {t: v['powerRank'] for t, v in conference_weeks[snap['week']]['teams'].items()}) for snap in output]
+    pages = team_pages(final_games, season['teams'], market, final_rows, final_power, membership, weekly)
     stamp = dict(week=last_week, asOf=market['asOf'] if market else None, through=through)
     (ROOT/'docs/team-data.js').write_text('const teamSeason = '+json.dumps(dict(stamp, teams=pages),ensure_ascii=False,separators=(',',':'))+';\n')
     (ROOT/'docs/conference-data.js').write_text('const conferenceWeeks = '+json.dumps(conference_weeks,separators=(',',':'))+';\n')
