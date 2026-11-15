@@ -4,11 +4,18 @@ Writes research/data/season-YYYY.json with regular-season games (including
 conference championships), College Football Playoff games, closing spreads
 and team conference ids. Bowl games outside the playoff are skipped.
 
-ESPN stores a closing-spread field from 2024 on. For earlier seasons only a
-per-book `spread` field exists; it is the home-team spread, and whether it is
-the opening or closing number is undocumented. validate() reports how well
-each season's lines track results so a bad season is visible.
+Lines prefer DraftKings, the book the live site uses:
+  1. DraftKings from ESPN's per-book odds (2021-2023, a few 2025 games)
+  2. DraftKings closing spread from CollegeFootballData (2023-2025)
+  3. ESPN BET, then ESPN's consensus
+  4. Bovada's closing spread from CollegeFootballData, then any other book
+ESPN's pre-2024 per-book `spread` field is undocumented, but it matches
+Bovada's closing line within 0.2-0.45 points and sits 1.3 points from the
+opening line, so it is treated as a close. CollegeFootballData needs an API
+key: set CFBD_API_KEY, or let a network proxy inject it. --no-cfbd skips it.
+validate() reports how well each season's lines track results.
 """
+import os
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -24,16 +31,16 @@ CORE = 'https://sports.core.api.espn.com/v2/sports/football/leagues/college-foot
 FBS = set('1 4 5 8 9 15 17 37 151 18 12'.split())
 OUT = Path(__file__).resolve().parent / 'data'
 EAST = ZoneInfo('America/New_York')
-BOOK_ORDER = ('consensus', 'DraftKings', 'ESPN BET')
+CFBD = 'https://api.collegefootballdata.com'
 
 
-def fetch(url, cache):
+def fetch(url, cache, headers=None):
     key = cache / (url.split('//', 1)[1].replace('/', '_').replace('?', '_').replace('&', '_')[:200] + '.json') if cache else None
     if key and key.exists():
         return json.loads(key.read_text())
     for attempt in range(4):
         try:
-            with urlopen(Request(url, headers={'User-Agent': 'cfb-backtest/1.0'}), timeout=60) as response:
+            with urlopen(Request(url, headers={'User-Agent': 'cfb-backtest/1.0', **(headers or {})}), timeout=60) as response:
                 data = json.load(response)
             break
         except HTTPError as error:
@@ -65,27 +72,51 @@ def spread_value(text):
     return value if math.isfinite(value) and abs(value) < MAX_SPREAD else None
 
 
-def closing_margin(document):
-    """Expected home margin from the best available line, or (None, None)."""
-    items = [i for i in document.get('items', []) if 'live' not in i['provider']['name'].lower()]
-    rank = lambda i: next((k for k, name in enumerate(BOOK_ORDER) if name.lower() == i['provider']['name'].lower()), len(BOOK_ORDER))
-    for item in sorted(items, key=rank):
-        close = spread_value(item.get('homeTeamOdds', {}).get('close', {}).get('pointSpread', {}).get('american'))
-        if close is not None:
-            return -close, item['provider']['name'] + ' close'
-    for item in sorted(items, key=rank):
-        spread = spread_value(item.get('spread'))
-        if spread is not None:
-            return -spread, item['provider']['name']
+def espn_spread(item):
+    """Home spread from one ESPN book: its close field, else its single spread field."""
+    close = spread_value(item.get('homeTeamOdds', {}).get('close', {}).get('pointSpread', {}).get('american'))
+    return close if close is not None else spread_value(item.get('spread'))
+
+
+def cfbd_lines(year, cache):
+    """CollegeFootballData spreads by ESPN event id: {id: (home team id, {book: home spread})}."""
+    key = os.environ.get('CFBD_API_KEY', 'proxy-injected')
+    out = {}
+    for kind in ('regular', 'postseason'):
+        for game in fetch(f'{CFBD}/lines?year={year}&seasonType={kind}', cache, {'Authorization': f'Bearer {key}'}) or []:
+            books = {line['provider']: spread_value(line.get('spread')) for line in game.get('lines', [])}
+            out[str(game['id'])] = (str(game['homeTeamId']), {k: v for k, v in books.items() if v is not None})
+    return out
+
+
+def closing_margin(document, home, cfbd):
+    """Expected home margin and its source, following the book priority above."""
+    espn = {}
+    for item in document.get('items', []):
+        name = item['provider']['name']
+        if 'live' not in name.lower() and name not in espn:
+            value = espn_spread(item)
+            if value is not None:
+                espn[name] = value
+    cf_home, cf = cfbd or (home, {})
+    sign = 1 if cf_home == home else -1          # CollegeFootballData can list a neutral-site game the other way round
+    cf = {k: sign * v for k, v in cf.items()}
+    for source, book in (('ESPN', 'DraftKings'), ('CFBD', 'DraftKings'), ('ESPN', 'ESPN BET'),
+                         ('ESPN', 'consensus'), ('CFBD', 'Bovada'), ('CFBD', 'consensus')):
+        value = (espn if source == 'ESPN' else cf).get(book)
+        if value is not None:
+            return -value, f'{book} ({source})'
+    for name, value in espn.items():
+        return -value, f'{name} (ESPN)'
     return None, None
 
 
-def game_record(event, cache, kind):
+def game_record(event, cache, kind, cfbd):
     match = event['competitions'][0]
     sides = {entry['homeAway']: entry for entry in match['competitors']}
     home, away = sides['home'], sides['away']
     odds = fetch(f"{CORE}/events/{event['id']}/competitions/{event['id']}/odds", cache)
-    margin, provider = closing_margin(odds)
+    margin, provider = closing_margin(odds, home['id'], cfbd.get(event['id']))
     stamp = datetime.fromisoformat(event['date'].replace('Z', '+00:00'))
     headline = (match.get('notes') or [{}])[0].get('headline', '')
     return dict(id=event['id'], kind=kind, week=event.get('week', {}).get('number'),
@@ -97,7 +128,7 @@ def game_record(event, cache, kind):
                 headline=headline, margin=margin, provider=provider)
 
 
-def collect(year, cache):
+def collect(year, cache, use_cfbd=True):
     teams, regular, playoff = {}, [], []
 
     def note(sides):
@@ -128,7 +159,8 @@ def collect(year, cache):
         if any(teams[s['team']['id']]['fbs'] for s in sides.values()):
             chosen.append((event, kind))
     with ThreadPoolExecutor(8) as pool:
-        records = list(pool.map(lambda item: game_record(item[0], cache, item[1]), chosen))
+        cfbd = cfbd_lines(year, cache) if use_cfbd else {}
+        records = list(pool.map(lambda item: game_record(item[0], cache, item[1], cfbd), chosen))
     for record in records:
         (playoff if record['kind'] == 'playoff' else regular).append(record)
     regular.sort(key=lambda g: (g['date'], g['id']))
@@ -161,9 +193,10 @@ def validate(payload):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('years', nargs='*', type=int, default=[2021, 2022, 2023, 2024, 2025])
-    parser.add_argument('--cache', type=Path, help='directory for raw ESPN responses')
+    parser.add_argument('--cache', type=Path, help='directory for raw API responses')
+    parser.add_argument('--no-cfbd', action='store_true', help='skip CollegeFootballData lines')
     args = parser.parse_args()
     if args.cache:
         args.cache.mkdir(parents=True, exist_ok=True)
     for year in args.years:
-        validate(collect(year, args.cache))
+        validate(collect(year, args.cache, not args.no_cfbd))

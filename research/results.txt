@@ -1,80 +1,80 @@
 == Tuning on the weekly test, 2021-2025, weeks >= 5
-  VPI (lines only)  drift    1: RMSE 4.838
-  VPI (lines only)  drift    2: RMSE 4.713
-  VPI (lines only)  drift    3: RMSE 4.673
-  VPI (lines only)  drift    4: RMSE 4.665
-  VPI (lines only)  drift    6: RMSE 4.685
-  VPI (lines only)  drift    8: RMSE 4.721
-  VPI (lines only)  drift   12: RMSE 4.801
-  predictor drift    1: SD4=3.281  SD4.5=3.226  SD5=3.269  SD6=3.472  SD8=3.889  SD12=4.350
-  predictor drift  1.5: SD4=3.360  SD4.5=3.238  SD5=3.237  SD6=3.394  SD8=3.790  SD12=4.255
-  predictor drift    2: SD4=3.454  SD4.5=3.281  SD5=3.242  SD6=3.359  SD8=3.734  SD12=4.199
-  predictor drift    3: SD4=3.636  SD4.5=3.390  SD5=3.296  SD6=3.347  SD8=3.683  SD12=4.145
-  predictor drift    4: SD4=3.795  SD4.5=3.500  SD5=3.366  SD6=3.367  SD8=3.670  SD12=4.127
+  VPI (lines only)  drift    1: RMSE 4.828
+  VPI (lines only)  drift    2: RMSE 4.693
+  VPI (lines only)  drift    3: RMSE 4.648
+  VPI (lines only)  drift    4: RMSE 4.637
+  VPI (lines only)  drift    6: RMSE 4.653
+  VPI (lines only)  drift    8: RMSE 4.687
+  VPI (lines only)  drift   12: RMSE 4.763
+  predictor drift    1: SD4=3.238  SD4.5=3.196  SD5=3.250  SD6=3.467  SD8=3.893  SD12=4.352
+  predictor drift  1.5: SD4=3.310  SD4.5=3.199  SD5=3.209  SD6=3.382  SD8=3.789  SD12=4.252
+  predictor drift    2: SD4=3.399  SD4.5=3.236  SD5=3.208  SD6=3.342  SD8=3.729  SD12=4.193
+  predictor drift    3: SD4=3.574  SD4.5=3.337  SD5=3.253  SD6=3.322  SD8=3.673  SD12=4.135
+  predictor drift    4: SD4=3.727  SD4.5=3.441  SD5=3.317  SD6=3.338  SD8=3.657  SD12=4.115
   -> VPI drift 4; predictor drift 1, result noise SD 4.5
 
 == Weekly test (VPI drift 4; predictor drift 1, result noise SD 4.5)
   season   games    VPI   pred     t | cross-conf VPI/pred   | after a bye VPI/pred  | calib slope VPI/pred
-  2021       538   4.80   3.02  11.7 | n= 56 4.97/3.62       | n=124 5.34/3.52       | 0.978/0.991
-  2022       540   4.74   3.39   8.6 | n= 51 4.53/3.18       | n=121 5.40/4.22       | 0.971/0.982
-  2023       547   4.48   3.34   8.9 | n= 42 4.06/2.99       | n=122 4.97/4.15       | 0.956/0.947
-  2024       566   4.81   3.43   8.5 | n= 62 5.01/4.06       | n=207 5.44/4.10       | 0.976/0.965
-  2025       577   4.49   3.00  10.2 | n= 50 5.92/3.67       | n=205 4.89/3.47       | 0.991/0.971
+  2021       538   4.79   3.02  11.8 | n= 56 4.84/3.50       | n=124 5.24/3.51       | 0.980/0.992
+  2022       540   4.74   3.38   8.7 | n= 51 4.46/2.98       | n=121 5.41/4.22       | 0.971/0.982
+  2023       547   4.44   3.30   8.7 | n= 42 4.01/2.97       | n=122 4.92/4.14       | 0.957/0.947
+  2024       568   4.75   3.35   9.9 | n= 62 4.96/4.02       | n=209 5.20/3.96       | 0.971/0.971
+  2025       577   4.47   2.97  10.4 | n= 50 5.93/3.59       | n=205 4.84/3.48       | 0.984/0.967
   2026*      485   4.63   3.31   8.7 | n= 23 3.35/2.44       | n=120 4.60/3.63       | 0.961/0.948
   * 2026 holdout through the current week, never used for tuning. t > 0: predictor better.
 
 == Freeze before championship week: predict championship lines
-  2021: n=10  VPI 3.23  predictor 1.58
-  2022: n=10  VPI 2.59  predictor 2.97
-  2023: n=10  VPI 4.36  predictor 3.83
-  2024: n= 9  VPI 2.80  predictor 1.86
-  2025: n= 9  VPI 2.75  predictor 2.04
-  all : n=48  VPI 3.23  predictor 2.62  paired t 1.7
-  win-probability Brier (n=48, SE ~0.021): VPI 0.208  predictor 0.223  closing line 0.231
+  2021: n=10  VPI 3.16  predictor 1.66
+  2022: n=10  VPI 2.63  predictor 2.91
+  2023: n=10  VPI 4.34  predictor 3.81
+  2024: n= 9  VPI 2.57  predictor 1.61
+  2025: n= 9  VPI 2.64  predictor 2.03
+  all : n=48  VPI 3.16  predictor 2.57  paired t 1.7
+  win-probability Brier (n=48, SE ~0.021): VPI 0.208  predictor 0.223  closing line 0.233
 
 == Freeze at selection day: predict playoff lines
-  2021: n= 3  VPI 4.23  predictor 1.75
-            Cincinnati @ Alabama          line  +13.0  VPI  +11.2  predictor  +10.5  result  +21
-               Georgia @ Michigan         line   -7.5  VPI  -14.3  predictor   -6.3  result  -23
-               Georgia @ Alabama          line   -3.0  VPI   -4.9  predictor   -1.8  result  -15
-  2022: n= 3  VPI 5.62  predictor 2.75
-                   TCU @ Michigan         line   +8.0  VPI  +12.2  predictor   +8.4  result   -6
-            Ohio State @ Georgia          line   +5.5  VPI   -2.0  predictor   +1.0  result   +1
-                   TCU @ Georgia          line  +13.5  VPI  +18.0  predictor  +11.9  result  +58
-  2023: n= 3  VPI 5.20  predictor 4.29
-               Alabama @ Michigan         line   +2.0  VPI   +5.6  predictor   +4.8  result   +7
+  2021: n= 3  VPI 4.43  predictor 1.68
+            Cincinnati @ Alabama          line  +12.5  VPI  +10.7  predictor  +10.0  result  +21
+               Georgia @ Michigan         line   -7.5  VPI  -14.7  predictor   -6.7  result  -23
+               Georgia @ Alabama          line   -3.0  VPI   -4.8  predictor   -1.7  result  -15
+  2022: n= 3  VPI 5.08  predictor 2.75
+                   TCU @ Michigan         line   +8.0  VPI  +11.6  predictor   +8.1  result   -6
+            Ohio State @ Georgia          line   +5.0  VPI   -2.3  predictor   +0.8  result   +1
+                   TCU @ Georgia          line  +13.5  VPI  +16.9  predictor  +11.3  result  +58
+  2023: n= 3  VPI 5.35  predictor 4.38
+               Alabama @ Michigan         line   +2.0  VPI   +5.8  predictor   +4.9  result   +7
                  Texas @ Washington       line   -3.5  VPI   -6.1  predictor   -7.0  result   +6
-            Washington @ Michigan         line   +5.5  VPI  +13.3  predictor  +11.4  result  +21
-  2024: n=11  VPI 2.97  predictor 3.05
-               Clemson @ Texas            line  +13.5  VPI  +11.4  predictor   +9.9  result  +14
-                   SMU @ Penn State       line   +7.5  VPI   +8.3  predictor   +6.3  result  +28
-               Indiana @ Notre Dame       line   +6.5  VPI   +5.3  predictor   +6.8  result  +10
-             Tennessee @ Ohio State       line   +7.5  VPI   +8.8  predictor   +8.6  result  +25
-            Penn State @ Boise State      line  -11.5  VPI  -14.7  predictor  -14.8  result  -17
-                 Texas @ Arizona State    line  -13.5  VPI  -17.1  predictor  -10.9  result   -8
-            Ohio State @ Oregon           line   -2.5  VPI   +0.1  predictor   -1.1  result  -20
-            Notre Dame @ Georgia          line   -1.5  VPI   +2.8  predictor   -1.1  result  -13
-            Notre Dame @ Penn State       line   +1.5  VPI   +3.2  predictor   -1.7  result   -3
-            Ohio State @ Texas            line   -5.5  VPI   -0.3  predictor   -1.7  result  -14
-            Ohio State @ Notre Dame       line   -8.5  VPI   -5.3  predictor   -2.0  result  -11
-  2025: n=11  VPI 2.75  predictor 2.46
-               Alabama @ Oklahoma         line   +2.5  VPI   +1.9  predictor   +2.4  result  -10
-                 Miami @ Texas A&M        line   +3.0  VPI   +5.6  predictor   -0.3  result   -7
-                Tulane @ Ole Miss         line  +16.5  VPI  +18.7  predictor  +16.1  result  +31
-         James Madison @ Oregon           line  +20.5  VPI  +15.1  predictor  +17.9  result  +17
-                 Miami @ Ohio State       line   +7.5  VPI  +10.2  predictor   +8.5  result  -10
-                Oregon @ Texas Tech       line   +1.5  VPI   +0.1  predictor   +2.1  result  -23
-               Alabama @ Indiana          line   +7.5  VPI   +6.6  predictor  +12.7  result  +35
-              Ole Miss @ Georgia          line   +6.0  VPI   +2.2  predictor   +3.5  result   -5
-                 Miami @ Ole Miss         line   -3.0  VPI   +0.2  predictor   -4.0  result   -4
-                Oregon @ Indiana          line   +3.0  VPI   +2.4  predictor   +3.9  result  +34
-                 Miami @ Indiana          line   +7.5  VPI  +10.1  predictor  +11.0  result   +6
-  all : n=31  VPI 3.64  predictor 2.87  paired t 1.8
-  win-probability Brier (n=31, SE ~0.025): VPI 0.192  predictor 0.176  closing line 0.173
+            Washington @ Michigan         line   +5.5  VPI  +13.6  predictor  +11.6  result  +21
+  2024: n=11  VPI 3.32  predictor 3.36
+               Clemson @ Texas            line  +13.5  VPI  +11.3  predictor  +10.1  result  +14
+                   SMU @ Penn State       line   +9.0  VPI   +7.4  predictor   +6.0  result  +28
+               Indiana @ Notre Dame       line   +7.0  VPI   +5.6  predictor   +6.9  result  +10
+             Tennessee @ Ohio State       line   +7.5  VPI   +7.9  predictor   +8.0  result  +25
+            Penn State @ Boise State      line  -12.0  VPI  -14.2  predictor  -14.5  result  -17
+                 Texas @ Arizona State    line  -13.5  VPI  -16.6  predictor  -10.8  result   -8
+            Ohio State @ Oregon           line   -2.5  VPI   +0.5  predictor   -0.9  result  -20
+            Notre Dame @ Georgia          line   -1.0  VPI   +3.1  predictor   -0.7  result  -13
+            Notre Dame @ Penn State       line   +1.5  VPI   +2.9  predictor   -1.7  result   -3
+            Ohio State @ Texas            line   -6.5  VPI   +0.9  predictor   -0.9  result  -14
+            Ohio State @ Notre Dame       line   -8.5  VPI   -4.7  predictor   -1.8  result  -11
+  2025: n=11  VPI 2.75  predictor 2.58
+               Alabama @ Oklahoma         line   +2.5  VPI   +2.3  predictor   +2.6  result  -10
+                 Miami @ Texas A&M        line   +3.0  VPI   +5.5  predictor   -0.3  result   -7
+                Tulane @ Ole Miss         line  +16.5  VPI  +17.8  predictor  +15.7  result  +31
+         James Madison @ Oregon           line  +20.5  VPI  +14.1  predictor  +17.2  result  +17
+                 Miami @ Ohio State       line   +7.5  VPI  +10.3  predictor   +8.2  result  -10
+                Oregon @ Texas Tech       line   +1.5  VPI   +1.5  predictor   +2.9  result  -23
+               Alabama @ Indiana          line   +7.5  VPI   +7.5  predictor  +12.9  result  +35
+              Ole Miss @ Georgia          line   +6.0  VPI   +2.4  predictor   +3.7  result   -5
+                 Miami @ Ole Miss         line   -3.0  VPI   -0.3  predictor   -4.3  result   -4
+                Oregon @ Indiana          line   +3.0  VPI   +3.1  predictor   +4.2  result  +34
+                 Miami @ Indiana          line   +7.5  VPI  +10.1  predictor  +10.7  result   +6
+  all : n=31  VPI 3.71  predictor 3.04  paired t 1.5
+  win-probability Brier (n=31, SE ~0.025): VPI 0.195  predictor 0.178  closing line 0.172
 
 == How far apart are the two final power rankings at selection day?
-  2021: top-25 mean |rank change| 3.3; largest Florida 23->36, Oregon 19->28, Arizona State 25->34
-  2022: top-25 mean |rank change| 4.5; largest North Carolina 22->44, Wake Forest 15->33, Ole Miss 16->26
-  2023: top-25 mean |rank change| 2.4; largest USC 21->30, Tennessee 11->17, Washington 18->13
-  2024: top-25 mean |rank change| 2.3; largest Tulane 22->37, Auburn 18->25, Texas A&M 11->16
-  2025: top-25 mean |rank change| 2.5; largest Florida State 22->31, Miami 12->6, Vanderbilt 20->14
+  2021: top-25 mean |rank change| 3.2; largest Arizona State 25->38, Florida 23->33, Houston 24->32
+  2022: top-25 mean |rank change| 4.4; largest North Carolina 22->44, Wake Forest 15->32, Ole Miss 16->26
+  2023: top-25 mean |rank change| 2.4; largest USC 21->31, Tennessee 11->17, Washington 18->13
+  2024: top-25 mean |rank change| 2.6; largest Tulane 25->38, Auburn 18->26, Iowa State 23->30
+  2025: top-25 mean |rank change| 2.4; largest Florida State 22->30, Miami 11->6, Missouri 16->21
