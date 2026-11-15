@@ -8,8 +8,12 @@ function updateSummary(s) {
     s.activeWeek + ' upcoming spreads: ' + s.quoted + ' of ' + s.scheduled;
 }
 
+function precedingSnapshot(week) {
+  return season.findLast(snapshot => snapshot.week < week);
+}
+
 function previousRanks(week) {
-  const previous = season.find(snapshot => snapshot.week === week - 1);
+  const previous = precedingSnapshot(week);
   return new Map(previous?.rows.map(team => [team.id, team.rank]));
 }
 
@@ -27,7 +31,7 @@ function rankWithMovement(team, previous) {
   const movement = document.createElement('small');
   const direction = change > 0 ? 'up' : change < 0 ? 'down' : 'unchanged';
   movement.className = 'rank-change ' + direction;
-  movement.title = change ? direction + ' ' + Math.abs(change) + ' from #' + prior + ' last week' : 'Unchanged from last week';
+  movement.title = change ? direction + ' ' + Math.abs(change) + ' from #' + prior + ' the previous ranked week' : 'Unchanged from the previous ranked week';
   movement.setAttribute('role', 'img');
   movement.setAttribute('aria-label', movement.title);
   movement.textContent = change ? (change > 0 ? '▲' : '▼') + Math.abs(change) : '–';
