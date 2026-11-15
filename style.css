@@ -3,3 +3,6 @@
 .ranking-scroll{overflow-x:auto}.ranking-scroll th{white-space:nowrap}@media(max-width:600px){nav{flex-wrap:wrap;column-gap:10px}}
 
 #edition-label[hidden]{display:none}
+td a{color:inherit;text-decoration-color:var(--rule);text-underline-offset:3px}td a:hover{text-decoration-color:currentColor}
+.schedule tr.upcoming{color:var(--muted)}.schedule td.shifted{font-weight:700}.note{font-size:14px;color:var(--muted)}.note a{color:var(--green)}
+.schedule td{white-space:nowrap}.schedule td:nth-child(2){white-space:normal}@media(max-width:600px){.schedule th:nth-child(3),.schedule td:nth-child(3){display:none}}
