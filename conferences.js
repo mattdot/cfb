@@ -73,6 +73,7 @@ function chart(teams, groups) {
 function render(){
   const s=season.find(x=>x.week===Number(week.value)), c=conferenceWeeks[s.week];
   const url=new URL(location.href);url.searchParams.set('week',week.value);url.searchParams.set('conference',league.value);history.replaceState(null,'',url);
+  $('vpi-link').href='vpi.html?week='+week.value+'&conference='+encodeURIComponent(league.value);
   $('rankings').href='./?week='+week.value;$('cutoff').textContent='Through '+s.through;
   const previous = previousRanks(s.week);
   const teams=s.rows.map(r=>({...r,...c.teams[r.id],selected:r.id===focused}));
