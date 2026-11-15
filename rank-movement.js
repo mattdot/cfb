@@ -1,3 +1,13 @@
+function updateSummary(s) {
+  if (!s.asOf) return 'Results through ' + s.through + ' · ' + s.games + ' completed games';
+  const updated = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', hour: 'numeric',
+    minute: '2-digit', timeZoneName: 'short'
+  }).format(new Date(s.asOf));
+  return 'Updated ' + updated + ' · ' + s.games + ' completed games · Week ' +
+    s.activeWeek + ' upcoming spreads: ' + s.quoted + ' of ' + s.scheduled;
+}
+
 function previousRanks(week) {
   const previous = season.find(snapshot => snapshot.week === week - 1);
   return new Map(previous?.rows.map(team => [team.id, team.rank]));
