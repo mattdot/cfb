@@ -37,7 +37,7 @@ function table(id, columns, data, sort, onSelect) {
       const cell=tr.insertCell(), text=display?display(r):r[key]??'—';
       if(key==='name' && onSelect){
         const b=document.createElement('button');b.textContent=text;b.onclick=()=>onSelect(r);cell.append(b);
-      }else cell.textContent=text;
+      }else cell.append(text);
     }
   }
 }
@@ -74,6 +74,7 @@ function render(){
   const s=season.find(x=>x.week===Number(week.value)), c=conferenceWeeks[s.week];
   const url=new URL(location.href);url.searchParams.set('week',week.value);url.searchParams.set('conference',league.value);history.replaceState(null,'',url);
   $('rankings').href='./?week='+week.value;$('cutoff').textContent='Through '+s.through;
+  const previous = previousRanks(s.week);
   const teams=s.rows.map(r=>({...r,...c.teams[r.id],selected:r.id===focused}));
   const groups=Object.entries(c.groups).map(([name,g])=>{
     const opponents=Object.values(g.opponents);
@@ -87,7 +88,7 @@ function render(){
   $('leagueTitle').textContent=league.value;
   $('teamSummary').textContent=members.length+' teams · AP '+(s.polls.ap??'unreleased')+' · CFP '+(s.polls.cfp??'unreleased');
   table('members',[
-    ['name','Team',null,1],['wins','Overall',r=>rec(r.wins,r.losses),-1],['cw','Conf.',r=>league.value==='Independents'?'—':rec(r.cw,r.cl),-1],['points','Power pts',r=>fmt(r.points),-1],['powerRank','Power rank',null,1],['rank','Vegas SOR',null,1],['ap','AP',null,1],['cfp','CFP',null,1]
+    ['name','Team',null,1],['wins','Overall',r=>rec(r.wins,r.losses),-1],['cw','Conf.',r=>league.value==='Independents'?'—':rec(r.cw,r.cl),-1],['points','Power pts',r=>fmt(r.points),-1],['powerRank','Power rank',null,1],['rank','Vegas SOR',r=>rankWithMovement(r,previous),1],['ap','AP',null,1],['cfp','CFP',null,1]
   ],members,teamSort);
   const body=$('opponents').tBodies[0];body.replaceChildren();
   const entries=Object.entries(c.groups[league.value].opponents).sort(([a],[b])=>Number(a==='FCS')-Number(b==='FCS')||a.localeCompare(b));
