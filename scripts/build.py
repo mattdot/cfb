@@ -6,6 +6,7 @@ import json
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
+HALF_LIFE_WEEKS = 2
 BETA = 0.11295175807571445
 
 
@@ -16,7 +17,7 @@ def rank(games, teams):
     lined = [g for g in games if g['margin'] is not None]
     if not lined:
         raise ValueError('At least one closing spread is required')
-    latest = max(date.fromisoformat(g['date']) for g in lined)
+    snapshot_week = max(g['week'] for g in games)
     design = np.zeros((len(lined), len(ids) + 2))
     weight, target = [], []
     for i, g in enumerate(lined):
@@ -25,8 +26,8 @@ def rank(games, teams):
         design[i,index[a]] = -1
         design[i,-2] = int(h not in fbs) - int(a not in fbs)
         design[i,-1] = int(not g['neutral'])
-        age = (latest - date.fromisoformat(g['date'])).days
-        weight.append(2 ** (-age / 35))
+        age_weeks = snapshot_week - g['week']
+        weight.append(2 ** (-age_weeks / HALF_LIFE_WEEKS))
         target.append(g['margin'])
     prior = np.zeros(len(ids)+2)
     prior[-1] = 2.5
