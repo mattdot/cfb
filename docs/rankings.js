@@ -55,7 +55,7 @@ function render() {
   const s = archived?.snapshot ?? season.find(item => item.week === Number(weeks.value));
   const teams = (archived?.conference ?? conferenceWeeks[s.week]).teams;
   const previous = previousRanks(s.week);
-  const priorPower = new Map(Object.entries(conferenceWeeks[s.week - 1]?.teams ?? {})
+  const priorPower = new Map(Object.entries(conferenceWeeks[precedingSnapshot(s.week)?.week]?.teams ?? {})
     .map(([id, team]) => [id, team.powerRank]));
   const query = search.value.trim().toLowerCase();
   const matches = s.rows.filter(row => row.name.toLowerCase().includes(query) &&

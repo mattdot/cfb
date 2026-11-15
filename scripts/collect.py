@@ -22,6 +22,23 @@ def fetch(url):
         return json.load(response)
 
 
+def regular_season_game(event):
+    if event['season']['type'] != 2:
+        return False
+    match = event['competitions'][0]
+    kind = match.get('type', {})
+    if str(kind.get('id')) in {'41', '42'} or kind.get('abbreviation', '').lower() in {
+        'conference championship', 'bowl game'
+    }:
+        return False
+    # ESPN also labels title games as STD, with the designation in the event headline.
+    headlines = [note.get('headline', '').lower() for note in match.get('notes', [])
+                 if note.get('type') == 'event']
+    return not any(title.endswith((' championship', ' championship game'))
+                   or title.startswith(('fcs championship -', 'college football playoff'))
+                   for title in headlines)
+
+
 def closing_margin(document):
     for item in sorted(document['items'], key=lambda x: x['provider']['id'] != '100'):
         close = item.get('homeTeamOdds', {}).get('close', {}).get('pointSpread', {})
@@ -54,9 +71,9 @@ def market_snapshot(schedule, last_week, observed):
             saturdays[day + timedelta(days=(5-day.weekday()) % 7)] += 1
     saturday = saturdays.most_common(1)[0][0]
     available_weeks = {e['week']['number'] for e, _ in schedule.values()}
-    active = last_week
-    if observed.astimezone(EAST).date() > saturday and last_week + 1 in available_weeks:
-        active += 1
+    elapsed = (observed.astimezone(EAST).date() - saturday).days
+    horizon = last_week + max(0, (elapsed + 6) // 7)
+    active = max(w for w in available_weeks if w <= horizon)
     quotes = []
     scheduled = quoted = 0
     for event, sides in schedule.values():
@@ -93,7 +110,7 @@ def collect(cache):
     with ThreadPoolExecutor(8) as pool:
         for board in pool.map(scoreboard, range(1, 17)):
             for event in board['events']:
-                if event['season']['year'] != 2026 or event['season']['type'] != 2:
+                if event['season']['year'] != 2026 or not regular_season_game(event):
                     continue
                 match = event['competitions'][0]
                 sides = {entry['homeAway']: entry for entry in match['competitors']}
