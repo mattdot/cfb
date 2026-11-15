@@ -21,8 +21,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install numpy
-      - if: github.event_name != 'push'
-        run: python scripts/collect.py
+      - run: python scripts/collect.py
       - run: python scripts/build.py
       - name: Update publishing branch
         env:
@@ -30,6 +29,18 @@ jobs:
         run: |
           git fetch origin gh-pages
           git worktree add -B gh-pages ../publish origin/gh-pages
+          python - <<'PYTHON'
+          import json
+          from pathlib import Path
+          def snapshots(path):
+              raw = Path(path).read_text().strip()
+              return {s['week']: s for s in json.loads(raw.removeprefix('const season = ').removesuffix(';'))}
+          incoming = snapshots('docs/season.js')
+          for week, previous in snapshots('../publish/season.js').items():
+              current = incoming.get(week)
+              if not current or current['games'] < previous['games'] or current['through'] < previous['through']:
+                  raise SystemExit(f'Week {week} would lose published results')
+          PYTHON
           rsync -a --delete --exclude='.git' docs/ ../publish/
           git -C ../publish add -A
           if ! git -C ../publish diff --cached --quiet; then
