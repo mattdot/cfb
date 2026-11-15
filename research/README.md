@@ -80,6 +80,19 @@ Line sources, in priority order: DraftKings from ESPN's per-book odds, DraftKing
 - **CollegeFootballData's 2023 DraftKings "spread"** sits about a point from every other closing source and predicts results slightly worse, which looks like an earlier snapshot. That's why ESPN's DraftKings number takes priority where both exist.
 - **Prices in the spread field.** ESPN stored prices (−110) in the closing-spread field for some 2022–2023 books. Both collectors now reject values of 75 or more.
 
+## Hindsight SOR (live default)
+
+The live SOR rates each opponent as it was in the week you played it, re-estimated with every line through today. `scripts/ratings.py` does this with a Rauch–Tung–Striebel smoother over the weekly filter states. It sits between the two simpler choices:
+
+- **Current strength** judges a September win against the opponent as it is in November.
+- **Game-week strength** uses only what the market knew in September.
+
+Example: Memphis won at Florida State in week 3 of 2024 (line FSU −7). FSU then went 2–10. The chance that a top-25 team would win at FSU was 47% at game time, 64% in hindsight, and 89% at the end of the season.
+
+In the 2021–25 final regular-season rankings, hindsight moves the top 25 by 1.0–1.8 places on average from current strength, and by 1.0–1.6 from game-week strength. Measured against the original closing line, a hindsight line moves 1.6–1.9 points in weeks 1–4 and about 1.1 from week 9 on. The late-season figure is close to the filter's normal fit error, so most real revision happens to early-season games.
+
+The smoother assumes teams change gradually. A sudden change, such as a quarterback injury, gets partly spread back into the weeks before it.
+
 ## Caveats
 
 - The predictor's optimum is a flat plateau: drift SD 1–1.4 points and result SD 4.5–5 points all score 3.23–3.24. The chosen point sits at the edge of the grid, but nearby settings are equivalent.

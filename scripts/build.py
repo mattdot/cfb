@@ -8,7 +8,7 @@ import ratings
 
 ROOT = Path(__file__).resolve().parents[1]
 BETA = 0.11295175807571445
-MODEL = 'random-walk-1'  # archived snapshots from another model are recomputed, not reused
+MODEL = 'random-walk-hindsight-1'  # archived snapshots from another model are recomputed, not reused
 
 
 def rank(games, teams, market=None):
@@ -22,16 +22,23 @@ def rank(games, teams, market=None):
     if not lined:
         raise ValueError('At least one closing spread is required')
     snapshot_week = market['activeWeek'] if market else max(g['week'] for g in games)
-    rating, home_field = ratings.run(lined, teams, snapshot_week).ratings()
-    reference = np.mean(sorted((rating[t] for t in fbs), reverse=True)[:25])
+    states = ratings.history(lined, teams, snapshot_week)
+    rating = states[snapshot_week].ratings()[0]
+    # SOR judges each game in hindsight: both the opponent and the top-25 benchmark
+    # as they were that week, re-estimated with every line through today.
+    hindsight = {}
+    for week, state in ratings.smooth(states).items():
+        then, home_field = state.ratings()
+        hindsight[week] = then, np.mean(sorted((then[t] for t in fbs), reverse=True)[:25]), home_field
     schedules = defaultdict(list)
     for g in games:
         home, away = g['home'], g['away']
+        then, reference, home_field = hindsight[g['week']]
         for team, opponent, sign in [(home,away,1),(away,home,-1)]:
             if team not in fbs:
                 continue
             venue = 0 if g['neutral'] else sign
-            p = 1 / (1 + np.exp(-BETA * (reference-rating[opponent]+venue*home_field)))
+            p = 1 / (1 + np.exp(-BETA * (reference-then[opponent]+venue*home_field)))
             won = sign * (g['homeScore']-g['awayScore']) > 0
             schedules[team].append((p, won))
     result = []

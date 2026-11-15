@@ -5,6 +5,10 @@ drift. Each spread observes home rating - away rating + home field with
 noise. A Kalman filter combines the two, so a rating holds its last value
 when no new line involves the team instead of sliding toward the average.
 Conference membership is never used.
+
+history() keeps every week's filtered state. smooth() runs the
+Rauch-Tung-Striebel smoother backward over them, giving each team's strength
+in each past week as judged with every line through the latest week.
 """
 import numpy as np
 
@@ -73,12 +77,37 @@ class State:
         return values, float(self.mean[-1])
 
 
-def run(lines, teams, through_week, drift=WEEKLY_DRIFT):
-    """Filter every line with week <= through_week, one week at a time."""
+def history(lines, teams, through_week, drift=WEEKLY_DRIFT):
+    """Filtered state after each week's lines: {week: State} for weeks 1..through_week."""
     state = State(teams)
+    states = {}
     for week in range(1, through_week + 1):
         if week > 1:
             state.drift(drift)
         batch = [g for g in lines if g['week'] == week]
         state.observe(batch, [g['margin'] for g in batch], LINE_NOISE)
-    return state
+        states[week] = state.copy()
+    return states
+
+
+def run(lines, teams, through_week, drift=WEEKLY_DRIFT):
+    """Filter every line with week <= through_week, one week at a time."""
+    return history(lines, teams, through_week, drift)[through_week]
+
+
+def smooth(states, drift=WEEKLY_DRIFT):
+    """Hindsight states: each week's ratings re-estimated with every later line as well."""
+    weeks = sorted(states)
+    last = weeks[-1]
+    q = np.diag(np.concatenate([np.where(states[last].fbs, drift, 0.0), [0.0, 0.0]]))
+    smoothed = {last: states[last].copy()}
+    for week in reversed(weeks[:-1]):
+        now, later = states[week], smoothed[week + 1]
+        predicted = now.cov + q
+        gain = np.linalg.solve(predicted, now.cov).T      # now.cov @ inv(predicted); both symmetric
+        state = now.copy()
+        state.mean = now.mean + gain @ (later.mean - now.mean)
+        state.cov = now.cov + gain @ (later.cov - predicted) @ gain.T
+        state.cov = (state.cov + state.cov.T) / 2
+        smoothed[week] = state
+    return smoothed

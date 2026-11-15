@@ -12,6 +12,9 @@ Tests
   champ      freeze before conference championship week, predict those lines
   selection  freeze after championship week (selection day), predict every
              playoff line
+  hindsight  final regular-season SOR with opponents rated in hindsight (the
+             live default) versus current strength and game-week strength,
+             and how far hindsight moves each game's line
 Settings are tuned on the weekly test for 2021-2025 only. The freezes and
 the 2026 holdout are scored with those settings and never tuned on.
 
@@ -143,6 +146,66 @@ def ranks(state, season):
     return {t: i + 1 for i, t in enumerate(fbs)}
 
 
+def sor(season, games, lines, through, mode):
+    """SOR probability per FBS team. mode: 'hindsight' (live default), 'current' or 'then'."""
+    teams = season['teams']
+    fbs = [t for t in teams if teams[t]['fbs']]
+    states = ratings.history(lines, teams, through)
+    views = ratings.smooth(states) if mode == 'hindsight' else states
+    cache = {}
+    def view(week):
+        key = through if mode == 'current' else week
+        if key not in cache:
+            r, h = views[key].ratings()
+            cache[key] = r, np.mean(sorted((r[t] for t in fbs), reverse=True)[:25]), h
+        return cache[key]
+    schedules = {}
+    for g in games:
+        r, ref, h = view(g['week'])
+        for team, opp, sign in ((g['home'], g['away'], 1), (g['away'], g['home'], -1)):
+            if teams[team]['fbs']:
+                venue = 0 if g['neutral'] else sign
+                p = 1 / (1 + math.exp(-BETA * (ref - r[opp] + venue * h)))
+                schedules.setdefault(team, []).append((p, sign * (g['homeScore'] - g['awayScore']) > 0))
+    out = {}
+    for team, sched in schedules.items():
+        dist = np.array([1.0])
+        wins = sum(won for _, won in sched)
+        for p, _ in sched:
+            dist = np.convolve(dist, [1 - p, p])
+        out[team] = float(dist[wins:].sum()) if wins else 1.0
+    return out
+
+
+def hindsight_report(seasons):
+    print('\n== Hindsight: final regular-season SOR (championship games excluded, as on the live site)')
+    for s in seasons:
+        end = min(g['week'] for g in s['games'] if g['championship']) - 1
+        games = [g for g in s['games'] if g['week'] <= end]
+        lines = [g for g in games if g['margin'] is not None]
+        ranked = {}
+        for mode in ('hindsight', 'current', 'then'):
+            scores = sor(s, games, lines, end, mode)
+            ranked[mode] = {t: i + 1 for i, t in enumerate(sorted(scores, key=scores.get))}
+        top = [t for t in ranked['hindsight'] if ranked['hindsight'][t] <= 25]
+        diff = lambda m: np.mean([abs(ranked['hindsight'][t] - ranked[m][t]) for t in top])
+        best = sorted(top, key=lambda t: ranked['hindsight'][t])[:10]
+        print(f"  {s['season']}: top-25 mean |rank change| vs current {diff('current'):.1f}, vs game-week {diff('then'):.1f}")
+        print('     top 10 (hindsight / current / game-week): ' + ', '.join(
+            f"{s['teams'][t]['name']} {ranked['hindsight'][t]}/{ranked['current'][t]}/{ranked['then'][t]}" for t in best))
+    print('\n== How far hindsight moves the original line (FBS vs FBS, |hindsight line - closing line|)')
+    for s in seasons:
+        end = min(g['week'] for g in s['games'] if g['championship']) - 1
+        lines = [g for g in s['games'] if g['margin'] is not None and g['week'] <= end]
+        smoothed = ratings.smooth(ratings.history(lines, s['teams'], end))
+        gaps = {}
+        for g in lines:
+            if s['teams'][g['home']]['fbs'] and s['teams'][g['away']]['fbs']:
+                band = 'weeks 1-4' if g['week'] <= 4 else 'weeks 5-8' if g['week'] <= 8 else 'week 9+'
+                gaps.setdefault(band, []).append(abs(smoothed[g['week']].predict(g) - g['margin']))
+        print(f"  {s['season']}: " + '  '.join(f'{b} {np.mean(v):.1f}' for b, v in gaps.items()))
+
+
 def report(seasons, holdout):
     print(f'\n== Weekly test (VPI drift {VPI_DRIFT}; predictor drift {PREDICTOR_DRIFT}, result noise SD {RESULT_NOISE})')
     print(f'  {"season":<8}{"games":>6}{"VPI":>7}{"pred":>7}{"t":>6} | {"cross-conf VPI/pred":<22}| {"after a bye VPI/pred":<22}| calib slope VPI/pred')
@@ -209,3 +272,4 @@ if __name__ == '__main__':
     if not args.no_tune:
         tune(history)
     report(history, [load(2026)])
+    hindsight_report(history)
