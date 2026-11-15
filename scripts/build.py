@@ -4,16 +4,16 @@ from pathlib import Path
 from collections import defaultdict
 import json
 import numpy as np
+import ratings
 
 ROOT = Path(__file__).resolve().parents[1]
-HALF_LIFE_WEEKS = 2
 BETA = 0.11295175807571445
+MODEL = 'random-walk-hindsight-1'  # archived snapshots from another model are recomputed, not reused
 
 
-def rank(games, teams, market=None):
-    ids = sorted(teams)
-    index = {team: i for i, team in enumerate(ids)}
-    fbs = [t for t in ids if teams[t]['fbs']]
+def views(games, teams, market=None):
+    """Current ratings and, per week, hindsight (ratings, top-25 reference, home field)."""
+    fbs = {t for t in teams if teams[t]['fbs']}
     lined = [g for g in games if g['margin'] is not None]
     covered = len(lined)
     if market:
@@ -23,32 +23,28 @@ def rank(games, teams, market=None):
     if not lined:
         raise ValueError('At least one closing spread is required')
     snapshot_week = market['activeWeek'] if market else max(g['week'] for g in games)
-    design = np.zeros((len(lined), len(ids) + 2))
-    weight, target = [], []
-    for i, g in enumerate(lined):
-        h, a = g['home'], g['away']
-        design[i,index[h]] = 1
-        design[i,index[a]] = -1
-        design[i,-2] = int(h not in fbs) - int(a not in fbs)
-        design[i,-1] = int(not g['neutral'])
-        age_weeks = snapshot_week - g['week']
-        weight.append(2 ** (-age_weeks / HALF_LIFE_WEEKS))
-        target.append(g['margin'])
-    prior = np.zeros(len(ids)+2)
-    prior[-1] = 2.5
-    penalty = np.array([0.1 if t in fbs else 2 for t in ids] + [0.001,1])
-    weighted = design.T * weight
-    coef = np.linalg.solve(weighted @ design + np.diag(penalty), weighted @ target + penalty * prior)
-    rating = {t: coef[index[t]] + (0 if t in fbs else coef[-2]) for t in ids}
-    reference = np.mean(sorted((rating[t] for t in fbs), reverse=True)[:25])
+    states = ratings.history(lined, teams, snapshot_week)
+    # SOR judges each game in hindsight: both the opponent and the top-25 benchmark
+    # as they were that week, re-estimated with every line through today.
+    hindsight = {}
+    for week, state in ratings.smooth(states).items():
+        then, home_field = state.ratings()
+        hindsight[week] = then, np.mean(sorted((then[t] for t in fbs), reverse=True)[:25]), home_field
+    return states[snapshot_week].ratings(), hindsight, covered
+
+
+def rank(games, teams, market=None):
+    fbs = {t for t in teams if teams[t]['fbs']}
+    (rating, _), hindsight, covered = views(games, teams, market)
     schedules = defaultdict(list)
     for g in games:
         home, away = g['home'], g['away']
+        then, reference, home_field = hindsight[g['week']]
         for team, opponent, sign in [(home,away,1),(away,home,-1)]:
             if team not in fbs:
                 continue
             venue = 0 if g['neutral'] else sign
-            p = 1 / (1 + np.exp(-BETA * (reference-rating[opponent]+venue*coef[-1])))
+            p = 1 / (1 + np.exp(-BETA * (reference-then[opponent]+venue*home_field)))
             won = sign * (g['homeScore']-g['awayScore']) > 0
             schedules[team].append((p, won))
     result = []
@@ -62,7 +58,43 @@ def rank(games, teams, market=None):
     result.sort(key=lambda r: (round(r['p'],14), r['name']))
     for i,row in enumerate(result):
         row['rank'] = result[i-1]['rank'] if i and round(row['p'],14)==round(result[i-1]['p'],14) else i+1
-    return result, covered, {t: rating[t] for t in fbs}
+    return result, covered, {t: rating[t] for t in sorted(fbs)}
+
+
+def team_pages(games, teams, market, rows, power, membership):
+    """Each FBS team's schedule with closing lines beside hindsight lines, for team.html."""
+    (current, home_field_now), hindsight, _ = views(games, teams, market)
+    sor = {row['id']: row for row in rows}
+    order = sorted(power, key=power.get, reverse=True)
+    average = np.mean(list(power.values()))
+    pages = {}
+    for team in order:
+        schedule = []
+        entries = [(g, False) for g in games] + [(q, True) for q in (market['quotes'] if market else [])]
+        for g, upcoming in entries:
+            if team not in (g['home'], g['away']):
+                continue
+            sign = 1 if g['home'] == team else -1
+            opponent = g['away'] if sign == 1 else g['home']
+            then, reference, home_field = hindsight.get(g['week'], (current, None, home_field_now))
+            venue = 0 if g['neutral'] else sign
+            game = dict(week=g['week'], date=g.get('localDate') or g['kickoff'][:10], opp=opponent,
+                        oppName=teams[opponent]['name'], site='neutral' if g['neutral'] else 'home' if sign == 1 else 'away',
+                        line=None if g['margin'] is None else round(-sign * g['margin'], 1))
+            if upcoming:
+                game['upcoming'] = True
+                game['projected'] = round(-(current[team] - current[opponent] + venue * home_field_now), 1)
+            else:
+                game['score'] = [g['homeScore'], g['awayScore']][::sign]
+                game['hindsight'] = round(-(then[team] - then[opponent] + venue * home_field), 1)
+                game['chance'] = round(float(1 / (1 + np.exp(-BETA * (reference - then[opponent] + venue * home_field)))), 4)
+            schedule.append(game)
+        schedule.sort(key=lambda x: (x['date'], x['week']))
+        row = sor[team]
+        pages[team] = dict(name=teams[team]['name'], conference=membership.get(team, ''), wins=row['wins'],
+                           losses=row['losses'], sorRank=row['rank'], p=row['p'], vpiRank=order.index(team) + 1,
+                           points=round(power[team] - average, 1), games=schedule)
+    return pages
 
 
 def build():
@@ -83,7 +115,7 @@ def build():
         daily = market if week == last_week else None
         if not daily and week in latest:
             saved = json.loads((archive/latest[week]['file']).read_text())
-            if saved['snapshot']['games'] == len(games):
+            if saved['snapshot'].get('model') == MODEL and saved['snapshot']['games'] == len(games):
                 output.append(saved['snapshot'])
                 conference_weeks[week] = saved['conference']
                 continue
@@ -103,7 +135,7 @@ def build():
                 releases[kind] = poll['date']
                 for row in rows:
                     row[kind] = poll['ranks'].get(row['id'])
-        output.append(dict(week=week, through=end, games=len(games), lined=covered, polls=releases, rows=rows))
+        output.append(dict(week=week, through=end, games=len(games), lined=covered, model=MODEL, polls=releases, rows=rows))
         if daily:
             snapshot = output[-1]
             snapshot.update({k:v for k,v in daily.items() if k != 'quotes'})
@@ -115,6 +147,11 @@ def build():
             if entry not in history:
                 history.append(entry)
             manifest.write_text(json.dumps(history,separators=(',',':')))
+    final_games = [g for g in season['games'] if g['week'] <= last_week]
+    final_rows, _, final_power = rank(final_games, season['teams'], market)
+    pages = team_pages(final_games, season['teams'], market, final_rows, final_power, membership)
+    stamp = dict(week=last_week, asOf=market['asOf'] if market else None, through=through)
+    (ROOT/'docs/team-data.js').write_text('const teamSeason = '+json.dumps(dict(stamp, teams=pages),ensure_ascii=False,separators=(',',':'))+';\n')
     (ROOT/'docs/conference-data.js').write_text('const conferenceWeeks = '+json.dumps(conference_weeks,separators=(',',':'))+';\n')
     (ROOT/'docs/season.js').write_text('const season = '+json.dumps(output,ensure_ascii=False,separators=(',',':'))+';\n')
 

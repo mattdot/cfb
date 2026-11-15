@@ -1,0 +1,99 @@
+== Tuning on the weekly test, 2021-2025, weeks >= 5
+  VPI (lines only)  drift    1: RMSE 4.828
+  VPI (lines only)  drift    2: RMSE 4.693
+  VPI (lines only)  drift    3: RMSE 4.648
+  VPI (lines only)  drift    4: RMSE 4.637
+  VPI (lines only)  drift    6: RMSE 4.653
+  VPI (lines only)  drift    8: RMSE 4.687
+  VPI (lines only)  drift   12: RMSE 4.763
+  predictor drift    1: SD4=3.238  SD4.5=3.196  SD5=3.250  SD6=3.467  SD8=3.893  SD12=4.352
+  predictor drift  1.5: SD4=3.310  SD4.5=3.199  SD5=3.209  SD6=3.382  SD8=3.789  SD12=4.252
+  predictor drift    2: SD4=3.399  SD4.5=3.236  SD5=3.208  SD6=3.342  SD8=3.729  SD12=4.193
+  predictor drift    3: SD4=3.574  SD4.5=3.337  SD5=3.253  SD6=3.322  SD8=3.673  SD12=4.135
+  predictor drift    4: SD4=3.727  SD4.5=3.441  SD5=3.317  SD6=3.338  SD8=3.657  SD12=4.115
+  -> VPI drift 4; predictor drift 1, result noise SD 4.5
+
+== Weekly test (VPI drift 4; predictor drift 1, result noise SD 4.5)
+  season   games    VPI   pred     t | cross-conf VPI/pred   | after a bye VPI/pred  | calib slope VPI/pred
+  2021       538   4.79   3.02  11.8 | n= 56 4.84/3.50       | n=124 5.24/3.51       | 0.980/0.992
+  2022       540   4.74   3.38   8.7 | n= 51 4.46/2.98       | n=121 5.41/4.22       | 0.971/0.982
+  2023       547   4.44   3.30   8.7 | n= 42 4.01/2.97       | n=122 4.92/4.14       | 0.957/0.947
+  2024       568   4.75   3.35   9.9 | n= 62 4.96/4.02       | n=209 5.20/3.96       | 0.971/0.971
+  2025       577   4.47   2.97  10.4 | n= 50 5.93/3.59       | n=205 4.84/3.48       | 0.984/0.967
+  2026*      485   4.63   3.31   8.7 | n= 23 3.35/2.44       | n=120 4.60/3.63       | 0.961/0.948
+  * 2026 holdout through the current week, never used for tuning. t > 0: predictor better.
+
+== Freeze before championship week: predict championship lines
+  2021: n=10  VPI 3.16  predictor 1.66
+  2022: n=10  VPI 2.63  predictor 2.91
+  2023: n=10  VPI 4.34  predictor 3.81
+  2024: n= 9  VPI 2.57  predictor 1.61
+  2025: n= 9  VPI 2.64  predictor 2.03
+  all : n=48  VPI 3.16  predictor 2.57  paired t 1.7
+  win-probability Brier (n=48, SE ~0.021): VPI 0.208  predictor 0.223  closing line 0.233
+
+== Freeze at selection day: predict playoff lines
+  2021: n= 3  VPI 4.43  predictor 1.68
+            Cincinnati @ Alabama          line  +12.5  VPI  +10.7  predictor  +10.0  result  +21
+               Georgia @ Michigan         line   -7.5  VPI  -14.7  predictor   -6.7  result  -23
+               Georgia @ Alabama          line   -3.0  VPI   -4.8  predictor   -1.7  result  -15
+  2022: n= 3  VPI 5.08  predictor 2.75
+                   TCU @ Michigan         line   +8.0  VPI  +11.6  predictor   +8.1  result   -6
+            Ohio State @ Georgia          line   +5.0  VPI   -2.3  predictor   +0.8  result   +1
+                   TCU @ Georgia          line  +13.5  VPI  +16.9  predictor  +11.3  result  +58
+  2023: n= 3  VPI 5.35  predictor 4.38
+               Alabama @ Michigan         line   +2.0  VPI   +5.8  predictor   +4.9  result   +7
+                 Texas @ Washington       line   -3.5  VPI   -6.1  predictor   -7.0  result   +6
+            Washington @ Michigan         line   +5.5  VPI  +13.6  predictor  +11.6  result  +21
+  2024: n=11  VPI 3.32  predictor 3.36
+               Clemson @ Texas            line  +13.5  VPI  +11.3  predictor  +10.1  result  +14
+                   SMU @ Penn State       line   +9.0  VPI   +7.4  predictor   +6.0  result  +28
+               Indiana @ Notre Dame       line   +7.0  VPI   +5.6  predictor   +6.9  result  +10
+             Tennessee @ Ohio State       line   +7.5  VPI   +7.9  predictor   +8.0  result  +25
+            Penn State @ Boise State      line  -12.0  VPI  -14.2  predictor  -14.5  result  -17
+                 Texas @ Arizona State    line  -13.5  VPI  -16.6  predictor  -10.8  result   -8
+            Ohio State @ Oregon           line   -2.5  VPI   +0.5  predictor   -0.9  result  -20
+            Notre Dame @ Georgia          line   -1.0  VPI   +3.1  predictor   -0.7  result  -13
+            Notre Dame @ Penn State       line   +1.5  VPI   +2.9  predictor   -1.7  result   -3
+            Ohio State @ Texas            line   -6.5  VPI   +0.9  predictor   -0.9  result  -14
+            Ohio State @ Notre Dame       line   -8.5  VPI   -4.7  predictor   -1.8  result  -11
+  2025: n=11  VPI 2.75  predictor 2.58
+               Alabama @ Oklahoma         line   +2.5  VPI   +2.3  predictor   +2.6  result  -10
+                 Miami @ Texas A&M        line   +3.0  VPI   +5.5  predictor   -0.3  result   -7
+                Tulane @ Ole Miss         line  +16.5  VPI  +17.8  predictor  +15.7  result  +31
+         James Madison @ Oregon           line  +20.5  VPI  +14.1  predictor  +17.2  result  +17
+                 Miami @ Ohio State       line   +7.5  VPI  +10.3  predictor   +8.2  result  -10
+                Oregon @ Texas Tech       line   +1.5  VPI   +1.5  predictor   +2.9  result  -23
+               Alabama @ Indiana          line   +7.5  VPI   +7.5  predictor  +12.9  result  +35
+              Ole Miss @ Georgia          line   +6.0  VPI   +2.4  predictor   +3.7  result   -5
+                 Miami @ Ole Miss         line   -3.0  VPI   -0.3  predictor   -4.3  result   -4
+                Oregon @ Indiana          line   +3.0  VPI   +3.1  predictor   +4.2  result  +34
+                 Miami @ Indiana          line   +7.5  VPI  +10.1  predictor  +10.7  result   +6
+  all : n=31  VPI 3.71  predictor 3.04  paired t 1.5
+  win-probability Brier (n=31, SE ~0.025): VPI 0.195  predictor 0.178  closing line 0.172
+
+== How far apart are the two final power rankings at selection day?
+  2021: top-25 mean |rank change| 3.2; largest Arizona State 25->38, Florida 23->33, Houston 24->32
+  2022: top-25 mean |rank change| 4.4; largest North Carolina 22->44, Wake Forest 15->32, Ole Miss 16->26
+  2023: top-25 mean |rank change| 2.4; largest USC 21->31, Tennessee 11->17, Washington 18->13
+  2024: top-25 mean |rank change| 2.6; largest Tulane 25->38, Auburn 18->26, Iowa State 23->30
+  2025: top-25 mean |rank change| 2.4; largest Florida State 22->30, Miami 11->6, Missouri 16->21
+
+== Hindsight: final regular-season SOR (championship games excluded, as on the live site)
+  2021: top-25 mean |rank change| vs current 1.8, vs game-week 1.0
+     top 10 (hindsight / current / game-week): Georgia 1/1/1, Alabama 2/3/2, Michigan 3/2/3, Cincinnati 4/4/4, Notre Dame 5/5/6, Ole Miss 6/7/5, Oklahoma State 7/6/7, Michigan State 8/8/8, Oklahoma 9/12/9, Ohio State 10/9/10
+  2022: top-25 mean |rank change| vs current 1.0, vs game-week 1.6
+     top 10 (hindsight / current / game-week): Michigan 1/1/2, TCU 2/2/1, Georgia 3/3/3, Ohio State 4/4/4, Tennessee 5/5/5, Penn State 6/7/8, Alabama 7/6/6, USC 8/8/7, LSU 9/10/9, Clemson 10/9/10
+  2023: top-25 mean |rank change| vs current 1.1, vs game-week 1.1
+     top 10 (hindsight / current / game-week): Michigan 1/1/1, Georgia 2/3/2, Florida State 3/2/4, Alabama 4/6/6, Ohio State 5/5/5, Washington 6/4/3, Texas 7/7/7, Ole Miss 8/8/8, Oregon 9/10/9, Missouri 10/9/10
+  2024: top-25 mean |rank change| vs current 1.0, vs game-week 1.4
+     top 10 (hindsight / current / game-week): Oregon 1/1/1, Georgia 2/2/3, Texas 3/3/2, Penn State 4/4/4, Notre Dame 5/5/7, Indiana 6/6/5, Tennessee 7/8/6, South Carolina 8/10/9, SMU 9/9/8, Ohio State 10/7/10
+  2025: top-25 mean |rank change| vs current 1.4, vs game-week 1.1
+     top 10 (hindsight / current / game-week): Ohio State 1/2/1, Indiana 2/1/2, Texas A&M 3/3/3, Georgia 4/5/4, Ole Miss 5/6/5, Oregon 6/4/6, BYU 7/7/7, Oklahoma 8/9/8, Alabama 9/8/9, Vanderbilt 10/11/10
+
+== How far hindsight moves the original line (FBS vs FBS, |hindsight line - closing line|)
+  2021: weeks 1-4 1.7  weeks 5-8 1.2  week 9+ 1.1
+  2022: weeks 1-4 1.9  weeks 5-8 1.4  week 9+ 1.1
+  2023: weeks 1-4 1.7  weeks 5-8 1.2  week 9+ 1.1
+  2024: weeks 1-4 1.7  weeks 5-8 1.3  week 9+ 1.1
+  2025: weeks 1-4 1.6  weeks 5-8 1.2  week 9+ 1.1

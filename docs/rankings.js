@@ -78,7 +78,17 @@ function render() {
     const values = conference
       ? [row.name, power.conference, points, record, row.rank]
       : [row.name, record, (100 * row.p).toFixed(2) + '%', power.powerRank, row.ap ?? '—', row.cfp ?? '—'];
-    for (const value of values) tr.insertCell().textContent = value;
+    values.forEach((value, i) => {
+      const cell = tr.insertCell();
+      if (i === 0) {
+        const link = document.createElement('a');
+        link.href = 'team.html?team=' + row.id;
+        link.textContent = value;
+        cell.append(link);
+      } else {
+        cell.textContent = value;
+      }
+    });
   }
   document.querySelector('#empty').hidden = matches.length > 0;
   if (!conference) {
