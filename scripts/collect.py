@@ -22,11 +22,20 @@ def fetch(url):
         return json.load(response)
 
 
+MAX_SPREAD = 75  # ESPN has stored prices such as -110 in this field for some books and seasons
+
+
 def closing_margin(document):
     for item in sorted(document['items'], key=lambda x: x['provider']['id'] != '100'):
-        close = item.get('homeTeamOdds', {}).get('close', {}).get('pointSpread', {})
-        if close.get('american') is not None:
-            return -float(close['american']), item['provider']['name']
+        close = item.get('homeTeamOdds', {}).get('close', {}).get('pointSpread', {}).get('american')
+        if close is None:
+            continue
+        try:
+            spread = 0.0 if str(close).strip().upper() in ('PK', 'PICK', 'EVEN') else float(close)
+        except ValueError:
+            continue
+        if math.isfinite(spread) and abs(spread) < MAX_SPREAD:
+            return -spread, item['provider']['name']
     return None, None
 
 

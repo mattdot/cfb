@@ -4,16 +4,15 @@ from pathlib import Path
 from collections import defaultdict
 import json
 import numpy as np
+import ratings
 
 ROOT = Path(__file__).resolve().parents[1]
-HALF_LIFE_WEEKS = 2
 BETA = 0.11295175807571445
+MODEL = 'random-walk-1'  # archived snapshots from another model are recomputed, not reused
 
 
 def rank(games, teams, market=None):
-    ids = sorted(teams)
-    index = {team: i for i, team in enumerate(ids)}
-    fbs = [t for t in ids if teams[t]['fbs']]
+    fbs = {t for t in teams if teams[t]['fbs']}
     lined = [g for g in games if g['margin'] is not None]
     covered = len(lined)
     if market:
@@ -23,23 +22,7 @@ def rank(games, teams, market=None):
     if not lined:
         raise ValueError('At least one closing spread is required')
     snapshot_week = market['activeWeek'] if market else max(g['week'] for g in games)
-    design = np.zeros((len(lined), len(ids) + 2))
-    weight, target = [], []
-    for i, g in enumerate(lined):
-        h, a = g['home'], g['away']
-        design[i,index[h]] = 1
-        design[i,index[a]] = -1
-        design[i,-2] = int(h not in fbs) - int(a not in fbs)
-        design[i,-1] = int(not g['neutral'])
-        age_weeks = snapshot_week - g['week']
-        weight.append(2 ** (-age_weeks / HALF_LIFE_WEEKS))
-        target.append(g['margin'])
-    prior = np.zeros(len(ids)+2)
-    prior[-1] = 2.5
-    penalty = np.array([0.1 if t in fbs else 2 for t in ids] + [0.001,1])
-    weighted = design.T * weight
-    coef = np.linalg.solve(weighted @ design + np.diag(penalty), weighted @ target + penalty * prior)
-    rating = {t: coef[index[t]] + (0 if t in fbs else coef[-2]) for t in ids}
+    rating, home_field = ratings.run(lined, teams, snapshot_week).ratings()
     reference = np.mean(sorted((rating[t] for t in fbs), reverse=True)[:25])
     schedules = defaultdict(list)
     for g in games:
@@ -48,7 +31,7 @@ def rank(games, teams, market=None):
             if team not in fbs:
                 continue
             venue = 0 if g['neutral'] else sign
-            p = 1 / (1 + np.exp(-BETA * (reference-rating[opponent]+venue*coef[-1])))
+            p = 1 / (1 + np.exp(-BETA * (reference-rating[opponent]+venue*home_field)))
             won = sign * (g['homeScore']-g['awayScore']) > 0
             schedules[team].append((p, won))
     result = []
@@ -62,7 +45,7 @@ def rank(games, teams, market=None):
     result.sort(key=lambda r: (round(r['p'],14), r['name']))
     for i,row in enumerate(result):
         row['rank'] = result[i-1]['rank'] if i and round(row['p'],14)==round(result[i-1]['p'],14) else i+1
-    return result, covered, {t: rating[t] for t in fbs}
+    return result, covered, {t: rating[t] for t in sorted(fbs)}
 
 
 def build():
@@ -83,7 +66,7 @@ def build():
         daily = market if week == last_week else None
         if not daily and week in latest:
             saved = json.loads((archive/latest[week]['file']).read_text())
-            if saved['snapshot']['games'] == len(games):
+            if saved['snapshot'].get('model') == MODEL and saved['snapshot']['games'] == len(games):
                 output.append(saved['snapshot'])
                 conference_weeks[week] = saved['conference']
                 continue
@@ -103,7 +86,7 @@ def build():
                 releases[kind] = poll['date']
                 for row in rows:
                     row[kind] = poll['ranks'].get(row['id'])
-        output.append(dict(week=week, through=end, games=len(games), lined=covered, polls=releases, rows=rows))
+        output.append(dict(week=week, through=end, games=len(games), lined=covered, model=MODEL, polls=releases, rows=rows))
         if daily:
             snapshot = output[-1]
             snapshot.update({k:v for k,v in daily.items() if k != 'quotes'})
