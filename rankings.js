@@ -43,7 +43,7 @@ function render() {
     }
     const values = conference
       ? [row.name, power.conference, points, record, row.rank]
-      : [row.name, record, (100 * row.p).toFixed(2) + '%', power.powerRank, points, row.ap ?? '—', row.cfp ?? '—'];
+      : [row.name, record, (100 * row.p).toFixed(2) + '%', power.powerRank, row.ap ?? '—', row.cfp ?? '—'];
     for (const value of values) tr.insertCell().textContent = value;
   }
   document.querySelector('#empty').hidden = matches.length > 0;
