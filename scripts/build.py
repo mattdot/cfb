@@ -10,14 +10,19 @@ HALF_LIFE_WEEKS = 2
 BETA = 0.11295175807571445
 
 
-def rank(games, teams):
+def rank(games, teams, market=None):
     ids = sorted(teams)
     index = {team: i for i, team in enumerate(ids)}
     fbs = [t for t in ids if teams[t]['fbs']]
     lined = [g for g in games if g['margin'] is not None]
+    covered = len(lined)
+    if market:
+        lined.extend(market['quotes'])
+        if len({g['id'] for g in lined}) != len(lined):
+            raise ValueError('Duplicate game in market fit')
     if not lined:
         raise ValueError('At least one closing spread is required')
-    snapshot_week = max(g['week'] for g in games)
+    snapshot_week = market['activeWeek'] if market else max(g['week'] for g in games)
     design = np.zeros((len(lined), len(ids) + 2))
     weight, target = [], []
     for i, g in enumerate(lined):
@@ -57,24 +62,39 @@ def rank(games, teams):
     result.sort(key=lambda r: (round(r['p'],14), r['name']))
     for i,row in enumerate(result):
         row['rank'] = result[i-1]['rank'] if i and round(row['p'],14)==round(result[i-1]['p'],14) else i+1
-    return result, len(lined), {t: rating[t] for t in fbs}
+    return result, covered, {t: rating[t] for t in fbs}
 
 
 def build():
     season = json.loads((ROOT/'data/season.json').read_text())
     from conferences import summarize
     membership = json.loads((ROOT/'data/conferences-2026.json').read_text())
+    archive = ROOT/'docs/archive'
+    manifest = archive/'index.json'
+    history = json.loads(manifest.read_text()) if manifest.exists() else []
+    latest = {entry['week']:entry for entry in history}
+    market = season.get('market')
+    last_week = max(g['week'] for g in season['games'])
     output = []
     conference_weeks = {}
     through = max(g['localDate'] for g in season['games'])
     for week in sorted({g['week'] for g in season['games']}):
         games = [g for g in season['games'] if g['week']<=week]
-        rows, covered, power = rank(games, season['teams'])
+        daily = market if week == last_week else None
+        if not daily and week in latest:
+            saved = json.loads((archive/latest[week]['file']).read_text())
+            if saved['snapshot']['games'] == len(games):
+                output.append(saved['snapshot'])
+                conference_weeks[week] = saved['conference']
+                continue
+        rows, covered, power = rank(games, season['teams'], daily)
         conference_weeks[week] = summarize(games, rows, power, membership, BETA)
         end = max(g['localDate'] for g in games)
         day = date.fromisoformat(end)
         # Pair a result week with the post-week polls through the next Tuesday.
         cutoff = min(through, (day+timedelta(days=(1-day.weekday())%7)).isoformat())
+        if daily:
+            cutoff = daily['asOf'][:10]
         releases = {}
         for kind in ('ap','cfp'):
             eligible = [p for p in season['polls'] if p['kind']==kind and p['date']<=cutoff]
@@ -84,6 +104,17 @@ def build():
                 for row in rows:
                     row[kind] = poll['ranks'].get(row['id'])
         output.append(dict(week=week, through=end, games=len(games), lined=covered, polls=releases, rows=rows))
+        if daily:
+            snapshot = output[-1]
+            snapshot.update({k:v for k,v in daily.items() if k != 'quotes'})
+            filename = daily['asOf'].replace(':','').replace('+0000','Z') + '.json'
+            archive.mkdir(exist_ok=True)
+            payload = dict(snapshot=snapshot, conference=conference_weeks[week], quotes=daily['quotes'])
+            (archive/filename).write_text(json.dumps(payload,separators=(',',':')))
+            entry = dict(week=week, asOf=daily['asOf'], file=filename)
+            if entry not in history:
+                history.append(entry)
+            manifest.write_text(json.dumps(history,separators=(',',':')))
     (ROOT/'docs/conference-data.js').write_text('const conferenceWeeks = '+json.dumps(conference_weeks,separators=(',',':'))+';\n')
     (ROOT/'docs/season.js').write_text('const season = '+json.dumps(output,ensure_ascii=False,separators=(',',':'))+';\n')
 

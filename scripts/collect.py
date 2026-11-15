@@ -1,7 +1,9 @@
 """Collect completed 2026 regular-season games and dated poll releases."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+from collections import Counter
+import math
 import json
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -28,6 +30,55 @@ def closing_margin(document):
     return None, None
 
 
+def upcoming_margin(match):
+    for odds in sorted(match.get('odds', []), key=lambda o: str(o['provider']['id']) != '100'):
+        line = odds.get('pointSpread', {}).get('home', {}).get('close', {}).get('line')
+        if line is None and (odds.get('details') or '').upper() not in ('', 'OFF'):
+            line = odds.get('spread')
+        try:
+            spread = 0 if str(line).upper() in ('PK', 'PICK') else float(line)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(spread):
+            return -spread, odds['provider']['name']
+    return None, None
+
+
+def market_snapshot(schedule, last_week, observed):
+    # The Sunday after the main Saturday slate advances the market week.
+    # A midweek final or a single rescheduled game cannot advance it early.
+    saturdays = Counter()
+    for event, _ in schedule.values():
+        if event['week']['number'] == last_week:
+            day = datetime.fromisoformat(event['date'].replace('Z', '+00:00')).astimezone(EAST).date()
+            saturdays[day + timedelta(days=(5-day.weekday()) % 7)] += 1
+    saturday = saturdays.most_common(1)[0][0]
+    available_weeks = {e['week']['number'] for e, _ in schedule.values()}
+    active = last_week
+    if observed.astimezone(EAST).date() > saturday and last_week + 1 in available_weeks:
+        active += 1
+    quotes = []
+    scheduled = quoted = 0
+    for event, sides in schedule.values():
+        week = event['week']['number']
+        if week > active or event['status']['type']['state'] != 'pre':
+            continue
+        start = datetime.fromisoformat(event['date'].replace('Z', '+00:00'))
+        if start <= observed or event['status']['type']['name'] != 'STATUS_SCHEDULED':
+            continue
+        scheduled += int(week == active)
+        match = event['competitions'][0]
+        margin, provider = upcoming_margin(match)
+        if margin is None:
+            continue
+        quoted += int(week == active)
+        quotes.append(dict(id=event['id'], week=week, home=sides['home']['id'],
+                           away=sides['away']['id'], neutral=match['neutralSite'],
+                           margin=margin, provider=provider, kickoff=event['date']))
+    return dict(asOf=observed.isoformat(timespec='seconds'), activeWeek=active,
+                scheduled=scheduled, quoted=quoted, quotes=quotes)
+
+
 def collect(cache):
     def read(key, url):
         file = cache / key if cache else None
@@ -38,7 +89,7 @@ def collect(cache):
 
     old = json.loads((DATA / 'season.json').read_text()) if (DATA / 'season.json').exists() else {}
     saved = {g['id']: g for g in old.get('games', [])}
-    teams, events = {}, {}
+    teams, events, schedule = {}, {}, {}
     with ThreadPoolExecutor(8) as pool:
         for board in pool.map(scoreboard, range(1, 17)):
             for event in board['events']:
@@ -51,8 +102,10 @@ def collect(cache):
                 for side in sides.values():
                     t = side['team']
                     teams[t['id']] = dict(name=t['location'], full=t['displayName'], fbs=t.get('conferenceId') in FBS)
-                if event['status']['type']['completed'] and any(teams[s['id']]['fbs'] for s in sides.values()):
-                    events[event['id']] = event, sides
+                if any(teams[s['id']]['fbs'] for s in sides.values()):
+                    schedule[event['id']] = event, sides
+                    if event['status']['type']['completed']:
+                        events[event['id']] = event, sides
 
         def game(item):
             key, (event, sides) = item
@@ -89,7 +142,8 @@ def collect(cache):
                 r['team']['$ref'].split('?')[0].split('/')[-1]:r['current'] for r in result['ranks']})
         polls = [p for p in pool.map(poll,[(w,k) for w in range(1,last_week+2) for k in (1,21)]) if p]
 
-    payload = dict(teams=teams,games=games,polls=polls)
+    market = market_snapshot(schedule, last_week, datetime.now(timezone.utc))
+    payload = dict(teams=teams,games=games,polls=polls,market=market)
     (DATA / 'season.json').write_text(json.dumps(payload,ensure_ascii=False,separators=(',',':'))+'\n')
 
 
